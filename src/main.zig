@@ -18,7 +18,7 @@ pub const ecs = struct {
             world.getLayoutComp(T).items[@intFromEnum(self)] = val;
         }
 
-        pub fn getSignature(self: @This(), world: anytype) @TypeOf(world).Info {
+        pub fn getSignature(self: @This(), world: anytype) @TypeOf(world).Signature {
             return world.signature.items[@intFromEnum(self)];
         }
 
