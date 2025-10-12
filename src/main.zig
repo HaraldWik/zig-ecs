@@ -9,12 +9,17 @@ pub const ecs_lib = struct {
         }
 
         pub fn getPtr(self: @This(), comptime T: type, ecs: anytype) ?*T {
-            var val = @field(ecs.layout, @typeName(T)).items[@intFromEnum(self)];
+            var val = ecs.getLayoutComp(T).items[@intFromEnum(self)];
             return if (val != null) &val.? else null;
         }
 
         pub fn set(self: @This(), comptime T: type, val: T, ecs: anytype) void {
+            ecs.info.items[@intFromEnum(self)].setValue(@TypeOf(ecs).getCompIndex(T), true);
             ecs.getLayoutComp(T).items[@intFromEnum(self)] = val;
+        }
+
+        pub fn getInfo(self: @This(), ecs: anytype) @TypeOf(ecs).Info {
+            return ecs.info.items[@intFromEnum(self)];
         }
 
         pub fn getGeneration(self: @This(), ecs: anytype) usize {
@@ -38,12 +43,14 @@ pub const ecs_lib = struct {
         return struct {
             allocator: std.mem.Allocator,
 
-            layout: Layout = undefined,
-            // info: []std.meta.Int(.unsigned, comps.len),
-            generation: std.ArrayList(usize) = .empty,
             next: std.Deque(Entity) = .empty,
 
+            layout: Layout = undefined,
+            info: std.ArrayList(Info) = .empty,
+            generation: std.ArrayList(usize) = .empty,
+
             pub const Layout: type = std.meta.Tuple(&types);
+            pub const Info: type = std.StaticBitSet(comps.len);
 
             pub fn getCompIndex(comptime T: type) usize {
                 inline for (kvs) |kv| if (kv.key == T) return kv.value;
@@ -54,13 +61,13 @@ pub const ecs_lib = struct {
                 var self: @This() = .{
                     .allocator = allocator,
                     .generation = try .initCapacity(allocator, capacity orelse 1),
-                    .next = try .initCapacity(allocator, 1),
                 };
                 inline for (comps) |comp| self.layout[comptime getCompIndex(comp)] = try .initCapacity(allocator, capacity orelse 1);
                 return self;
             }
 
             pub fn deinit(self: *@This()) void {
+                self.next.deinit(self.allocator);
                 self.generation.deinit(self.allocator);
                 inline for (comps) |comp| self.layout[comptime getCompIndex(comp)].deinit(self.allocator);
             }
@@ -71,8 +78,9 @@ pub const ecs_lib = struct {
 
             pub fn add(self: *@This()) !Entity {
                 const front: usize = @intFromEnum(self.next.popFront() orelse @as(Entity, @enumFromInt(self.generation.items.len)));
-                try self.generation.insert(self.allocator, front, 0);
                 inline for (comps) |comp| try self.layout[comptime getCompIndex(comp)].insert(self.allocator, front, undefined);
+                try self.info.insert(self.allocator, front, .initEmpty());
+                try self.generation.insert(self.allocator, front, 0);
 
                 return @enumFromInt(front);
             }
@@ -91,8 +99,8 @@ pub const ecs_lib = struct {
                 for (0..len) |i| {
                     var found: usize = 0;
                     inline for (T) |comp| {
-                        if (self.getLayoutComp(comp).items[i] != null) found += 1;
-                    }
+                        if (self.info.items[i].mask >> @intCast(getCompIndex(comp)) == 1) found += 1;
+                    } // else continue?
 
                     if (found == T.len) try out.append(allocator, @enumFromInt(i));
                 }
@@ -111,8 +119,8 @@ pub const ecs_lib = struct {
                 for (0..len) |i| {
                     var found: usize = 0;
                     inline for (T) |comp| {
-                        if (self.getLayoutComp(comp).items[i] != 0) found += 1;
-                    }
+                        if (self.info.items[i].mask >> @intCast(getCompIndex(comp)) == 1) found += 1;
+                    } // else continue?
 
                     if (found == T.len) {
                         out += 1;
@@ -126,9 +134,7 @@ pub const ecs_lib = struct {
     }
 };
 
-pub const Vec3 = @Vector(3, f32);
-
-pub const Ecs = ecs_lib.Ecs(&.{ u32, f32, Vec3 });
+pub const Ecs = ecs_lib.Ecs(&.{ u32, f32, @Vector(3, f32) });
 
 pub fn main() !void {
     const allocator = std.heap.page_allocator;
@@ -152,11 +158,11 @@ pub fn main() !void {
     const thing: ecs_lib.Entity = try ecs.add();
     thing.set(u32, 420, ecs);
 
-    std.debug.print("u32: {any}\nf32: {any}\n", .{ ecs.layout[comptime @TypeOf(ecs).getCompIndex(u32)].items, ecs.layout[comptime @TypeOf(ecs).getCompIndex(f32)].items });
-
-    var query: [1028]ecs_lib.Entity = undefined;
-    const n = try ecs.queryBuffer(&.{u32}, &query);
-    for (query[0..n]) |entity| {
-        std.debug.print("Entity: {d}, gen: {d} val: {?}\n", .{ @intFromEnum(entity), entity.getGeneration(ecs), entity.get(u32, ecs) });
+    var query = try ecs.query(&.{u32}, allocator);
+    defer query.deinit(allocator);
+    std.debug.print("Entities: ", .{});
+    for (query.items) |entity| {
+        std.debug.print("{d}, ", .{@intFromEnum(entity)});
     }
+    std.debug.print("\n", .{});
 }
