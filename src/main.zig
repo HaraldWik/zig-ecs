@@ -90,7 +90,7 @@ pub const ecs = struct {
                 try self.next.pushFront(self.allocator, entity);
             }
 
-            pub fn query(self: @This(), comptime T: []const type, allocator: std.mem.Allocator) !std.ArrayList(Entity) {
+            pub fn allocQuery(self: @This(), comptime T: []const type, allocator: std.mem.Allocator) !std.ArrayList(Entity) {
                 var len: usize = std.math.maxInt(usize);
                 inline for (comps) |comp| len = @min(len, self.getLayoutComp(comp).items.len);
 
@@ -108,7 +108,7 @@ pub const ecs = struct {
                 return out;
             }
 
-            pub fn queryBuffer(self: @This(), comptime T: []const type, buffer: []Entity) !usize {
+            pub fn bufQuery(self: @This(), comptime T: []const type, buffer: []Entity) !usize {
                 @memset(buffer, @enumFromInt(0));
 
                 var len: usize = std.math.maxInt(usize);
