@@ -6,13 +6,16 @@ pub const ecs = struct {
 
         pub fn get(self: @This(), comptime T: type, world: anytype) ?T {
             return if (world.signatures.items[@intFromEnum(self)].mask >> @intCast(@TypeOf(world).getCompIndex(T)) == 1)
-                return world.getLayoutComp(T).items[@intFromEnum(self)]
+                world.getLayoutComp(T).items[@intFromEnum(self)]
             else
                 null;
         }
 
         pub fn getPtr(self: @This(), comptime T: type, world: anytype) ?*T {
-            var val = world.getLayoutComp(T).items[@intFromEnum(self)];
+            var val: ?T = if (world.signatures.items[@intFromEnum(self)].mask >> @intCast(@TypeOf(world).getCompIndex(T)) == 1)
+                world.getLayoutComp(T).items[@intFromEnum(self)]
+            else
+                null;
             return if (val != null) &val.? else null;
         }
 
@@ -166,7 +169,7 @@ pub fn main() !void {
     std.debug.print("Entities: ", .{});
     for (query.items) |entity| {
         std.debug.print("{d}, ", .{@intFromEnum(entity)});
-        std.debug.print("{?}, ", .{entity.get(f32, world)});
+        std.debug.print("{?}, {?}, ", .{ entity.get(f32, world), entity.getPtr(f32, world) });
     }
     std.debug.print("\n", .{});
 }
