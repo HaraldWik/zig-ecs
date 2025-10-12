@@ -5,7 +5,10 @@ pub const ecs = struct {
         _,
 
         pub fn get(self: @This(), comptime T: type, world: anytype) ?T {
-            return world.getLayoutComp(T).items[@intFromEnum(self)];
+            return if (world.signatures.items[@intFromEnum(self)].mask >> @intCast(@TypeOf(world).getCompIndex(T)) == 1)
+                return world.getLayoutComp(T).items[@intFromEnum(self)]
+            else
+                null;
         }
 
         pub fn getPtr(self: @This(), comptime T: type, world: anytype) ?*T {
@@ -14,12 +17,12 @@ pub const ecs = struct {
         }
 
         pub fn set(self: @This(), comptime T: type, val: T, world: anytype) void {
-            world.signature.items[@intFromEnum(self)].setValue(@TypeOf(world).getCompIndex(T), true);
+            world.signatures.items[@intFromEnum(self)].setValue(@TypeOf(world).getCompIndex(T), true);
             world.getLayoutComp(T).items[@intFromEnum(self)] = val;
         }
 
         pub fn getSignature(self: @This(), world: anytype) @TypeOf(world).Signature {
-            return world.signature.items[@intFromEnum(self)];
+            return world.signatures.items[@intFromEnum(self)];
         }
 
         pub fn getGeneration(self: @This(), world: anytype) usize {
@@ -46,7 +49,7 @@ pub const ecs = struct {
             next: std.Deque(Entity) = .empty,
 
             layout: Layout = undefined,
-            signature: std.ArrayList(Signature) = .empty,
+            signatures: std.ArrayList(Signature) = .empty,
             generation: std.ArrayList(usize) = .empty,
 
             pub const Layout: type = std.meta.Tuple(&types);
@@ -79,7 +82,7 @@ pub const ecs = struct {
             pub fn add(self: *@This()) !Entity {
                 const front: usize = @intFromEnum(self.next.popFront() orelse @as(Entity, @enumFromInt(self.generation.items.len)));
                 inline for (comps) |comp| try self.layout[comptime getCompIndex(comp)].insert(self.allocator, front, undefined);
-                try self.signature.insert(self.allocator, front, .initEmpty());
+                try self.signatures.insert(self.allocator, front, .initEmpty());
                 try self.generation.insert(self.allocator, front, 0);
 
                 return @enumFromInt(front);
@@ -99,8 +102,8 @@ pub const ecs = struct {
                 for (0..len) |i| {
                     var found: usize = 0;
                     inline for (T) |comp| {
-                        if (self.signature.items[i].mask >> @intCast(getCompIndex(comp)) == 1) found += 1;
-                    } // else continue?
+                        if (self.signatures.items[i].mask >> @intCast(getCompIndex(comp)) == 1) found += 1;
+                    }
 
                     if (found == T.len) try out.append(allocator, @enumFromInt(i));
                 }
@@ -119,8 +122,8 @@ pub const ecs = struct {
                 for (0..len) |i| {
                     var found: usize = 0;
                     inline for (T) |comp| {
-                        if (self.signature.items[i].mask >> @intCast(getCompIndex(comp)) == 1) found += 1;
-                    } // else continue?
+                        if (self.signatures.items[i].mask >> @intCast(getCompIndex(comp)) == 1) found += 1;
+                    }
 
                     if (found == T.len) {
                         out += 1;
@@ -158,11 +161,12 @@ pub fn main() !void {
     const thing: ecs.Entity = try world.add();
     thing.set(u32, 420, world);
 
-    var query = try world.query(&.{u32}, allocator);
+    var query = try world.allocQuery(&.{u32}, allocator);
     defer query.deinit(allocator);
     std.debug.print("Entities: ", .{});
     for (query.items) |entity| {
         std.debug.print("{d}, ", .{@intFromEnum(entity)});
+        std.debug.print("{?}, ", .{entity.get(f32, world)});
     }
     std.debug.print("\n", .{});
 }
