@@ -14,12 +14,12 @@ pub const ecs = struct {
         }
 
         pub fn set(self: @This(), comptime T: type, val: T, world: anytype) void {
-            world.info.items[@intFromEnum(self)].setValue(@TypeOf(world).getCompIndex(T), true);
+            world.signature.items[@intFromEnum(self)].setValue(@TypeOf(world).getCompIndex(T), true);
             world.getLayoutComp(T).items[@intFromEnum(self)] = val;
         }
 
-        pub fn getInfo(self: @This(), world: anytype) @TypeOf(world).Info {
-            return world.info.items[@intFromEnum(self)];
+        pub fn getSignature(self: @This(), world: anytype) @TypeOf(world).Info {
+            return world.signature.items[@intFromEnum(self)];
         }
 
         pub fn getGeneration(self: @This(), world: anytype) usize {
@@ -46,11 +46,11 @@ pub const ecs = struct {
             next: std.Deque(Entity) = .empty,
 
             layout: Layout = undefined,
-            info: std.ArrayList(Info) = .empty,
+            signature: std.ArrayList(Signature) = .empty,
             generation: std.ArrayList(usize) = .empty,
 
             pub const Layout: type = std.meta.Tuple(&types);
-            pub const Info: type = std.StaticBitSet(comps.len);
+            pub const Signature: type = std.StaticBitSet(comps.len);
 
             pub fn getCompIndex(comptime T: type) usize {
                 inline for (kvs) |kv| if (kv.key == T) return kv.value;
@@ -79,7 +79,7 @@ pub const ecs = struct {
             pub fn add(self: *@This()) !Entity {
                 const front: usize = @intFromEnum(self.next.popFront() orelse @as(Entity, @enumFromInt(self.generation.items.len)));
                 inline for (comps) |comp| try self.layout[comptime getCompIndex(comp)].insert(self.allocator, front, undefined);
-                try self.info.insert(self.allocator, front, .initEmpty());
+                try self.signature.insert(self.allocator, front, .initEmpty());
                 try self.generation.insert(self.allocator, front, 0);
 
                 return @enumFromInt(front);
@@ -99,7 +99,7 @@ pub const ecs = struct {
                 for (0..len) |i| {
                     var found: usize = 0;
                     inline for (T) |comp| {
-                        if (self.info.items[i].mask >> @intCast(getCompIndex(comp)) == 1) found += 1;
+                        if (self.signature.items[i].mask >> @intCast(getCompIndex(comp)) == 1) found += 1;
                     } // else continue?
 
                     if (found == T.len) try out.append(allocator, @enumFromInt(i));
@@ -119,7 +119,7 @@ pub const ecs = struct {
                 for (0..len) |i| {
                     var found: usize = 0;
                     inline for (T) |comp| {
-                        if (self.info.items[i].mask >> @intCast(getCompIndex(comp)) == 1) found += 1;
+                        if (self.signature.items[i].mask >> @intCast(getCompIndex(comp)) == 1) found += 1;
                     } // else continue?
 
                     if (found == T.len) {
@@ -142,23 +142,23 @@ pub fn main() !void {
     var world: World = try .init(allocator, null);
     defer world.deinit();
 
-    const player: ecs.Entity = try ecs.add();
-    player.set(u32, 28, ecs);
+    const player: ecs.Entity = try world.add();
+    player.set(u32, 28, world);
 
-    const bob: ecs.Entity = try ecs.add();
-    bob.set(f32, 33.33, ecs);
+    const bob: ecs.Entity = try world.add();
+    bob.set(f32, 33.33, world);
 
-    const billy: ecs.Entity = try ecs.add();
-    billy.set(f32, 33.33, ecs);
+    const billy: ecs.Entity = try world.add();
+    billy.set(f32, 33.33, world);
 
-    const harald: ecs.Entity = try ecs.add();
-    harald.set(f32, 67.69, ecs);
-    try ecs.remove(harald);
+    const harald: ecs.Entity = try world.add();
+    harald.set(f32, 67.69, world);
+    try world.remove(harald);
 
-    const thing: ecs.Entity = try ecs.add();
-    thing.set(u32, 420, ecs);
+    const thing: ecs.Entity = try world.add();
+    thing.set(u32, 420, world);
 
-    var query = try ecs.query(&.{u32}, allocator);
+    var query = try world.query(&.{u32}, allocator);
     defer query.deinit(allocator);
     std.debug.print("Entities: ", .{});
     for (query.items) |entity| {
