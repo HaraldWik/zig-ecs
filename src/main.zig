@@ -1,33 +1,33 @@
 const std = @import("std");
 
-pub const ecs_lib = struct {
+pub const ecs = struct {
     pub const Entity = enum(usize) {
         _,
 
-        pub fn get(self: @This(), comptime T: type, ecs: anytype) ?T {
-            return ecs.getLayoutComp(T).items[@intFromEnum(self)];
+        pub fn get(self: @This(), comptime T: type, world: anytype) ?T {
+            return world.getLayoutComp(T).items[@intFromEnum(self)];
         }
 
-        pub fn getPtr(self: @This(), comptime T: type, ecs: anytype) ?*T {
-            var val = ecs.getLayoutComp(T).items[@intFromEnum(self)];
+        pub fn getPtr(self: @This(), comptime T: type, world: anytype) ?*T {
+            var val = world.getLayoutComp(T).items[@intFromEnum(self)];
             return if (val != null) &val.? else null;
         }
 
-        pub fn set(self: @This(), comptime T: type, val: T, ecs: anytype) void {
-            ecs.info.items[@intFromEnum(self)].setValue(@TypeOf(ecs).getCompIndex(T), true);
-            ecs.getLayoutComp(T).items[@intFromEnum(self)] = val;
+        pub fn set(self: @This(), comptime T: type, val: T, world: anytype) void {
+            world.info.items[@intFromEnum(self)].setValue(@TypeOf(world).getCompIndex(T), true);
+            world.getLayoutComp(T).items[@intFromEnum(self)] = val;
         }
 
-        pub fn getInfo(self: @This(), ecs: anytype) @TypeOf(ecs).Info {
-            return ecs.info.items[@intFromEnum(self)];
+        pub fn getInfo(self: @This(), world: anytype) @TypeOf(world).Info {
+            return world.info.items[@intFromEnum(self)];
         }
 
-        pub fn getGeneration(self: @This(), ecs: anytype) usize {
-            return ecs.generation.items[@intFromEnum(self)];
+        pub fn getGeneration(self: @This(), world: anytype) usize {
+            return world.generation.items[@intFromEnum(self)];
         }
     };
 
-    pub fn Ecs(comps: []const type) type {
+    pub fn World(comps: []const type) type {
         const types: [comps.len]type = types: {
             var types: [comps.len]type = @splat(@TypeOf(null));
             for (comps, &types) |comp, *@"type"| @"type".* = std.ArrayList(comp);
@@ -134,28 +134,28 @@ pub const ecs_lib = struct {
     }
 };
 
-pub const Ecs = ecs_lib.Ecs(&.{ u32, f32, @Vector(3, f32) });
+pub const World = ecs.World(&.{ u32, f32, @Vector(3, f32) });
 
 pub fn main() !void {
     const allocator = std.heap.page_allocator;
 
-    var ecs: Ecs = try .init(allocator, null);
-    defer ecs.deinit();
+    var world: World = try .init(allocator, null);
+    defer world.deinit();
 
-    const player: ecs_lib.Entity = try ecs.add();
+    const player: ecs.Entity = try ecs.add();
     player.set(u32, 28, ecs);
 
-    const bob: ecs_lib.Entity = try ecs.add();
+    const bob: ecs.Entity = try ecs.add();
     bob.set(f32, 33.33, ecs);
 
-    const billy: ecs_lib.Entity = try ecs.add();
+    const billy: ecs.Entity = try ecs.add();
     billy.set(f32, 33.33, ecs);
 
-    const harald: ecs_lib.Entity = try ecs.add();
+    const harald: ecs.Entity = try ecs.add();
     harald.set(f32, 67.69, ecs);
     try ecs.remove(harald);
 
-    const thing: ecs_lib.Entity = try ecs.add();
+    const thing: ecs.Entity = try ecs.add();
     thing.set(u32, 420, ecs);
 
     var query = try ecs.query(&.{u32}, allocator);
