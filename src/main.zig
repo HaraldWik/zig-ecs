@@ -30,8 +30,8 @@ pub const ecs_lib = struct {
         };
 
         const kvs = kvs: {
-            var kvs: [comps.len]std.StaticStringMap(usize).KV = undefined;
-            for (comps, &kvs, 0..) |comp, *kv, i| kv.* = .{ .key = @typeName(comp), .value = i };
+            var kvs: [comps.len]struct { key: type, value: usize } = undefined;
+            for (comps, &kvs, 0..) |comp, *kv, i| kv.* = .{ .key = comp, .value = i };
             break :kvs kvs;
         };
 
@@ -46,7 +46,7 @@ pub const ecs_lib = struct {
             pub const Layout: type = std.meta.Tuple(&types);
 
             pub fn getCompIndex(comptime T: type) usize {
-                inline for (kvs) |kv| if (std.mem.eql(u8, kv.key, @typeName(T))) return kv.value;
+                inline for (kvs) |kv| if (kv.key == T) return kv.value;
                 @panic("invalid type of " ++ @typeName(T));
             }
 
