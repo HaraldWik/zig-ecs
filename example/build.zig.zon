@@ -1,9 +1,13 @@
 .{
-    .name = .ecs,
+    .name = .example,
     .version = "0.0.0",
-    .fingerprint = 0x3681c83b971ff9f2,
+    .fingerprint = 0x6eec9b9fd69f62a1,
     .minimum_zig_version = "0.16.0-dev.699+529aa9f27",
-    .dependencies = .{},
+    .dependencies = .{
+        .ecs = .{
+            .path = "../",
+        },
+    },
     .paths = .{
         "build.zig",
         "build.zig.zon",
