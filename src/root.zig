@@ -4,14 +4,14 @@ pub const Entity = enum(usize) {
     _,
 
     pub fn get(self: @This(), comptime T: type, world: anytype) ?T {
-        return if (world.signatures.items[@intFromEnum(self)].mask >> @intCast(@TypeOf(world).getCompIndex(T)) == 1)
+        return if (world.signatures.items[@intFromEnum(self)] >> @intCast(@TypeOf(world).getCompIndex(T)) == 1)
             world.getLayoutComp(T).items[@intFromEnum(self)]
         else
             null;
     }
 
     pub fn getPtr(self: @This(), comptime T: type, world: anytype) ?*T {
-        var val: ?T = if (world.signatures.items[@intFromEnum(self)].mask >> @intCast(@TypeOf(world).getCompIndex(T)) == 1)
+        var val: ?T = if (world.signatures.items[@intFromEnum(self)] >> @intCast(@TypeOf(world).getCompIndex(T)) == 1)
             world.getLayoutComp(T).items[@intFromEnum(self)]
         else
             null;
@@ -19,7 +19,7 @@ pub const Entity = enum(usize) {
     }
 
     pub fn set(self: @This(), comptime T: type, val: T, world: anytype) void {
-        world.signatures.items[@intFromEnum(self)].setValue(@TypeOf(world).getCompIndex(T), true);
+        world.signatures.items[@intFromEnum(self)] |= (@as(@TypeOf(world).Signature, 1) << @intCast(@TypeOf(world).getCompIndex(T)));
         world.getLayoutComp(T).items[@intFromEnum(self)] = val;
     }
 
@@ -55,7 +55,7 @@ pub fn World(comps: []const type) type {
         generation: std.ArrayList(usize) = .empty,
 
         pub const Layout: type = std.meta.Tuple(&types);
-        pub const Signature: type = std.StaticBitSet(comps.len);
+        pub const Signature: type = std.meta.Int(.unsigned, comps.len);
 
         pub fn getCompIndex(comptime T: type) usize {
             inline for (kvs) |kv| if (kv.key == T) return kv.value;
@@ -84,7 +84,7 @@ pub fn World(comps: []const type) type {
         pub fn add(self: *@This()) !Entity {
             const front: usize = @intFromEnum(self.next.popFront() orelse @as(Entity, @enumFromInt(self.generation.items.len)));
             inline for (comps) |comp| try self.layout[comptime getCompIndex(comp)].insert(self.allocator, front, undefined);
-            try self.signatures.insert(self.allocator, front, .initEmpty());
+            try self.signatures.insert(self.allocator, front, 0);
             try self.generation.insert(self.allocator, front, 0);
 
             return @enumFromInt(front);
@@ -103,8 +103,9 @@ pub fn World(comps: []const type) type {
 
             for (0..len) |i| {
                 var found: usize = 0;
+
                 inline for (T) |comp| {
-                    if (self.signatures.items[i].mask >> @intCast(getCompIndex(comp)) == 1) found += 1;
+                    if (((self.signatures.items[i] >> @intCast(getCompIndex(comp))) & 1) == 1) found += 1;
                 }
 
                 if (found == T.len) try out.append(allocator, @enumFromInt(i));

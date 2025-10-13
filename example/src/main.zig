@@ -1,7 +1,7 @@
 const std = @import("std");
 const ecs = @import("ecs");
 
-pub const World = ecs.World(&.{ u32, f32, @Vector(3, f32) });
+pub const World = ecs.World(&.{ u32, f32 });
 
 pub fn main() !void {
     const allocator = std.heap.page_allocator;
@@ -23,14 +23,14 @@ pub fn main() !void {
     try world.remove(harald);
 
     const thing: ecs.Entity = try world.add();
+    thing.set(f32, 69.123, world);
     thing.set(u32, 420, world);
 
-    var query = try world.allocQuery(&.{u32}, allocator);
+    var query = try world.allocQuery(&.{ u32, f32 }, allocator);
     defer query.deinit(allocator);
     std.debug.print("Entities: ", .{});
     for (query.items) |entity| {
-        std.debug.print("{d}, ", .{@intFromEnum(entity)});
-        std.debug.print("{?}, {?}, ", .{ entity.get(f32, world), entity.getPtr(f32, world) });
+        std.debug.print("(i: {d}, u: {?}, f: {?}, g: {x}), ", .{ @intFromEnum(entity), entity.get(u32, world), entity.get(f32, world), entity.getGeneration(world) });
     }
     std.debug.print("\n", .{});
 }
