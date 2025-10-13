@@ -33,4 +33,6 @@ pub fn main() !void {
         std.debug.print("(i: {d}, u: {?}, f: {?}, g: {x}), ", .{ @intFromEnum(entity), entity.get(u32, world), entity.get(f32, world), entity.getGeneration(world) });
     }
     std.debug.print("\n", .{});
+
+    std.debug.print("Total entity count {d}\n", .{world.entity_count});
 }

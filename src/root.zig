@@ -51,6 +51,7 @@ pub fn World(comps: []const type) type {
         next: std.Deque(Entity) = .empty,
 
         layout: Layout = undefined,
+        entity_count: usize = 0,
         signatures: std.ArrayList(Signature) = .empty,
         generation: std.ArrayList(usize) = .empty,
 
@@ -87,12 +88,16 @@ pub fn World(comps: []const type) type {
             try self.signatures.insert(self.allocator, front, 0);
             try self.generation.insert(self.allocator, front, 0);
 
+            self.entity_count += 1;
+
             return @enumFromInt(front);
         }
 
         pub fn remove(self: *@This(), entity: Entity) !void {
             self.generation.items[@intFromEnum(entity)] += 1;
             try self.next.pushFront(self.allocator, entity);
+
+            self.entity_count -= 1;
         }
 
         pub fn allocQuery(self: @This(), comptime T: []const type, allocator: std.mem.Allocator) !std.ArrayList(Entity) {
