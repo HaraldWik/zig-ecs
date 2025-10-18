@@ -35,13 +35,13 @@ pub const Entity = enum(usize) {
 pub fn World(comps: []const type) type {
     const types: [comps.len]type = types: {
         var types: [comps.len]type = @splat(@TypeOf(null));
-        for (comps, &types) |comp, *Type| Type.* = std.ArrayList(comp);
+        for (comps, &types) |Comp, *Type| Type.* = std.ArrayList(Comp);
         break :types types;
     };
 
     const kvs = kvs: {
         var kvs: [comps.len]struct { key: type, value: usize } = undefined;
-        for (comps, &kvs, 0..) |comp, *kv, i| kv.* = .{ .key = comp, .value = i };
+        for (comps, &kvs, 0..) |Comp, *kv, i| kv.* = .{ .key = Comp, .value = i };
         break :kvs kvs;
     };
 
