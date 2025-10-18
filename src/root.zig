@@ -4,35 +4,74 @@ pub const Entity = enum(usize) {
     _,
 
     pub fn get(self: @This(), comptime T: type, world: anytype) ?T {
-        return if (world.signatures.items[@intFromEnum(self)] >> @intCast(@TypeOf(world).getCompIndex(T)) == 1)
-            world.getLayoutComp(T).items[@intFromEnum(self)]
-        else
-            null;
+        return world.entityGet(T, self);
     }
 
     pub fn getPtr(self: @This(), comptime T: type, world: anytype) ?*T {
-        var val: ?T = if (world.signatures.items[@intFromEnum(self)] >> @intCast(@TypeOf(world).getCompIndex(T)) == 1)
-            world.getLayoutComp(T).items[@intFromEnum(self)]
-        else
-            null;
-        return if (val != null) &val.? else null;
+        return world.entityGetPtr(T, self);
     }
 
     pub fn set(self: @This(), comptime T: type, val: T, world: anytype) void {
-        world.signatures.items[@intFromEnum(self)] |= (@as(@TypeOf(world).Signature, 1) << @intCast(@TypeOf(world).getCompIndex(T)));
-        world.getLayoutComp(T).items[@intFromEnum(self)] = val;
-    }
-
-    pub fn getSignature(self: @This(), world: anytype) @TypeOf(world).Signature {
-        return world.signatures.items[@intFromEnum(self)];
-    }
-
-    pub fn getGeneration(self: @This(), world: anytype) usize {
-        return world.generation.items[@intFromEnum(self)];
+        world.entitySet(T, val, self);
     }
 };
 
-pub fn World(comps: []const type) type {
+pub fn World(I: type) type {
+    return *opaque {
+        pub const Inner = I;
+
+        pub fn getCompIndex(comptime T: type) usize {
+            return Inner.getCompIndex(T);
+        }
+
+        pub fn getLayoutComp(ptr: *@This(), comptime T: type) std.ArrayList(T) {
+            const self: *Inner = @ptrCast(@alignCast(ptr));
+            self.*.getLayoutComp();
+        }
+
+        pub fn add(ptr: *@This()) !Entity {
+            const self: *Inner = @ptrCast(@alignCast(ptr));
+            return self.add();
+        }
+
+        pub fn remove(ptr: *@This(), entity: Entity) !void {
+            const self: *Inner = @ptrCast(@alignCast(ptr));
+            try self.remove(entity);
+        }
+
+        pub fn allocQuery(ptr: *@This(), comptime T: []const type, allocator: std.mem.Allocator) !std.ArrayList(Entity) {
+            const self: *Inner = @ptrCast(@alignCast(ptr));
+            return self.*.allocQuery(T, allocator);
+        }
+
+        pub fn bufQuery(ptr: *@This(), comptime T: []const type, buffer: []Entity) !usize {
+            const self: *Inner = @ptrCast(@alignCast(ptr));
+            return self.*.bufQuery(T, buffer);
+        }
+
+        pub fn getEntityCount(ptr: *@This()) usize {
+            const self: *Inner = @ptrCast(@alignCast(ptr));
+            return self.entity_count;
+        }
+
+        pub fn entityGet(ptr: *@This(), comptime T: type, entity: Entity) ?T {
+            const self: *Inner = @ptrCast(@alignCast(ptr));
+            return self.*.entityGet(T, entity);
+        }
+
+        pub fn entityGetPtr(ptr: *@This(), comptime T: type, entity: Entity) ?*T {
+            const self: *Inner = @ptrCast(@alignCast(ptr));
+            return self.*.entityGetPtr(T, entity);
+        }
+
+        pub fn entitySet(ptr: *@This(), comptime T: type, val: T, entity: Entity) void {
+            const self: *Inner = @ptrCast(@alignCast(ptr));
+            self.*.entitySet(T, val, entity);
+        }
+    };
+}
+
+pub fn DefaultWorld(comps: []const type) type {
     const types: [comps.len]type = types: {
         var types: [comps.len]type = @splat(@TypeOf(null));
         for (comps, &types) |Comp, *Type| Type.* = std.ArrayList(Comp);
@@ -58,11 +97,6 @@ pub fn World(comps: []const type) type {
         pub const Layout: type = std.meta.Tuple(&types);
         pub const Signature: type = std.meta.Int(.unsigned, comps.len);
 
-        pub fn getCompIndex(comptime T: type) usize {
-            inline for (kvs) |kv| if (kv.key == T) return kv.value;
-            @panic("invalid type of " ++ @typeName(T));
-        }
-
         pub fn init(allocator: std.mem.Allocator, capacity: ?usize) !@This() {
             var self: @This() = .{
                 .allocator = allocator,
@@ -76,6 +110,15 @@ pub fn World(comps: []const type) type {
             self.next.deinit(self.allocator);
             self.generation.deinit(self.allocator);
             inline for (comps) |comp| self.layout[comptime getCompIndex(comp)].deinit(self.allocator);
+        }
+
+        pub fn world(self: *@This()) World(@This()) {
+            return @ptrCast(@alignCast(self));
+        }
+
+        pub fn getCompIndex(comptime T: type) usize {
+            inline for (kvs) |kv| if (kv.key == T) return kv.value;
+            @panic("invalid type of " ++ @typeName(T));
         }
 
         pub fn getLayoutComp(self: @This(), comptime T: type) std.ArrayList(T) {
@@ -140,6 +183,26 @@ pub fn World(comps: []const type) type {
             }
 
             return out;
+        }
+
+        pub fn entityGet(self: @This(), comptime T: type, entity: Entity) ?T {
+            return if (self.signatures.items[@intFromEnum(entity)] >> @intCast(getCompIndex(T)) == 1)
+                self.getLayoutComp(T).items[@intFromEnum(entity)]
+            else
+                null;
+        }
+
+        pub fn entityGetPtr(self: @This(), comptime T: type, entity: Entity) ?*T {
+            var val: ?T = if (self.signatures.items[@intFromEnum(entity)] >> @intCast(getCompIndex(T)) == 1)
+                self.getLayoutComp(T).items[@intFromEnum(entity)]
+            else
+                null;
+            return if (val != null) &val.? else null;
+        }
+
+        pub fn entitySet(self: @This(), comptime T: type, val: T, entity: Entity) void {
+            self.signatures.items[@intFromEnum(entity)] |= (@as(Signature, 1) << @intCast(getCompIndex(T)));
+            self.getLayoutComp(T).items[@intFromEnum(entity)] = val;
         }
     };
 }
