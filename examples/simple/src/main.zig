@@ -1,13 +1,15 @@
 const std = @import("std");
 const ecs = @import("ecs");
 
-pub const World = ecs.World(&.{ u32, f32 });
+pub const Default = ecs.DefaultWorld(&.{ u32, f32 });
 
 pub fn main() !void {
     const allocator = std.heap.page_allocator;
 
-    var world: World = try .init(allocator, null);
-    defer world.deinit();
+    var default: Default = try .init(allocator, null);
+    defer default.deinit();
+
+    const world: ecs.World(Default) = default.world();
 
     const player: ecs.Entity = try world.add();
     player.set(u32, 28, world);
@@ -30,9 +32,9 @@ pub fn main() !void {
     defer query.deinit(allocator);
     std.debug.print("Entities: ", .{});
     for (query.items) |entity| {
-        std.debug.print("(i: {d}, u: {?}, f: {?}, g: {x}), ", .{ @intFromEnum(entity), entity.get(u32, world), entity.get(f32, world), entity.getGeneration(world) });
+        std.debug.print("(i: {d}, u: {any}, f: {?}), ", .{ @intFromEnum(entity), entity.getPtr(u32, world), entity.get(f32, world) });
     }
     std.debug.print("\n", .{});
 
-    std.debug.print("Total entity count {d}\n", .{world.entity_count});
+    std.debug.print("Total entity count {d}\n", .{world.getEntityCount()});
 }
