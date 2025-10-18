@@ -35,7 +35,7 @@ pub const Entity = enum(usize) {
 pub fn World(comps: []const type) type {
     const types: [comps.len]type = types: {
         var types: [comps.len]type = @splat(@TypeOf(null));
-        for (comps, &types) |comp, *@"type"| @"type".* = std.ArrayList(comp);
+        for (comps, &types) |comp, *Type| Type.* = std.ArrayList(comp);
         break :types types;
     };
 
@@ -68,7 +68,7 @@ pub fn World(comps: []const type) type {
                 .allocator = allocator,
                 .generation = try .initCapacity(allocator, capacity orelse 1),
             };
-            inline for (comps) |comp| self.layout[comptime getCompIndex(comp)] = try .initCapacity(allocator, capacity orelse 1);
+            inline for (comps) |Comp| self.layout[comptime getCompIndex(Comp)] = try .initCapacity(allocator, capacity orelse 1);
             return self;
         }
 
@@ -84,7 +84,7 @@ pub fn World(comps: []const type) type {
 
         pub fn add(self: *@This()) !Entity {
             const front: usize = @intFromEnum(self.next.popFront() orelse @as(Entity, @enumFromInt(self.generation.items.len)));
-            inline for (comps) |comp| try self.layout[comptime getCompIndex(comp)].insert(self.allocator, front, undefined);
+            inline for (comps) |Comp| try self.layout[comptime getCompIndex(Comp)].insert(self.allocator, front, undefined);
             try self.signatures.insert(self.allocator, front, 0);
             try self.generation.insert(self.allocator, front, 0);
 
@@ -102,15 +102,15 @@ pub fn World(comps: []const type) type {
 
         pub fn allocQuery(self: @This(), comptime T: []const type, allocator: std.mem.Allocator) !std.ArrayList(Entity) {
             var len: usize = std.math.maxInt(usize);
-            inline for (comps) |comp| len = @min(len, self.getLayoutComp(comp).items.len);
+            inline for (comps) |Comp| len = @min(len, self.getLayoutComp(Comp).items.len);
 
             var out: std.ArrayList(Entity) = try .initCapacity(allocator, 128);
 
             for (0..len) |i| {
                 var found: usize = 0;
 
-                inline for (T) |comp| {
-                    if (((self.signatures.items[i] >> @intCast(getCompIndex(comp))) & 1) == 1) found += 1;
+                inline for (T) |Comp| {
+                    if (((self.signatures.items[i] >> @intCast(getCompIndex(Comp))) & 1) == 1) found += 1;
                 }
 
                 if (found == T.len) try out.append(allocator, @enumFromInt(i));
@@ -123,14 +123,14 @@ pub fn World(comps: []const type) type {
             @memset(buffer, @enumFromInt(0));
 
             var len: usize = std.math.maxInt(usize);
-            inline for (comps) |comp| len = @min(len, self.getLayoutComp(comp).items.len);
+            inline for (comps) |Comp| len = @min(len, self.getLayoutComp(Comp).items.len);
 
             var out: usize = 0;
 
             for (0..len) |i| {
                 var found: usize = 0;
-                inline for (T) |comp| {
-                    if (self.signatures.items[i].mask >> @intCast(getCompIndex(comp)) == 1) found += 1;
+                inline for (T) |Comp| {
+                    if (self.signatures.items[i].mask >> @intCast(getCompIndex(Comp)) == 1) found += 1;
                 }
 
                 if (found == T.len) {
