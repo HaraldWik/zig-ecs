@@ -74,6 +74,7 @@ pub fn World(comps: []const type) type {
 
         pub fn deinit(self: *@This()) void {
             self.next.deinit(self.allocator);
+            self.signatures.deinit(self.allocator);
             self.generation.deinit(self.allocator);
             inline for (comps) |comp| self.layout[comptime getCompIndex(comp)].deinit(self.allocator);
         }

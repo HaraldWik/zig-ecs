@@ -4,7 +4,9 @@ const ecs = @import("ecs");
 pub const World = ecs.World(&.{ u32, f32 });
 
 pub fn main() !void {
-    const allocator = std.heap.page_allocator;
+    var gpa: std.heap.GeneralPurposeAllocator(.{ .safety = true }) = .{};
+    defer _ = gpa.deinit();
+    const allocator = gpa.allocator();
 
     var world: World = try .init(allocator, null);
     defer world.deinit();
