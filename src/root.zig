@@ -55,6 +55,7 @@ pub fn World(comps: []const type) type {
         signatures: std.ArrayList(Signature) = .empty,
         generation: std.ArrayList(usize) = .empty,
 
+        pub const components: []const type = comps;
         pub const Layout: type = std.meta.Tuple(&types);
         pub const Signature: type = std.meta.Int(.unsigned, comps.len);
 
@@ -143,4 +144,22 @@ pub fn World(comps: []const type) type {
             return out;
         }
     };
+}
+
+pub fn MergeComponentSlices(groups: []const []const type) []const type {
+    const len: usize = len: {
+        var len: usize = 0;
+        for (groups) |comps| len += comps.len;
+        break :len len;
+    };
+    const out: [len]type = out: {
+        var out: [len]type = undefined;
+        var pos: usize = 0;
+        for (groups) |comps| {
+            @memcpy(out[pos .. pos + comps.len], comps);
+            pos += comps.len;
+        }
+        break :out out;
+    };
+    return &out;
 }

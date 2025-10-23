@@ -1,7 +1,10 @@
 const std = @import("std");
 const ecs = @import("ecs");
 
-pub const World = ecs.World(&.{ u32, f32 });
+pub const Components: []const type = &.{ u32, u64 };
+pub const Components2: []const type = &.{ f32, f64 };
+
+pub const World = ecs.World(ecs.MergeComponentSlices(&.{ Components, Components2 }));
 
 pub fn main() !void {
     var gpa: std.heap.GeneralPurposeAllocator(.{ .safety = true }) = .{};
