@@ -102,7 +102,7 @@ pub fn World(comps: []const type) type {
             self.entity_count -= 1;
         }
 
-        pub fn allocQuery(self: @This(), comptime T: []const type, allocator: std.mem.Allocator) !std.ArrayList(Entity) {
+        pub fn allocQuery(self: @This(), comptime search: []const type, allocator: std.mem.Allocator) !std.ArrayList(Entity) {
             var len: usize = std.math.maxInt(usize);
             inline for (comps) |Comp| len = @min(len, self.getLayoutComp(Comp).items.len);
 
@@ -111,17 +111,17 @@ pub fn World(comps: []const type) type {
             for (0..len) |i| {
                 var found: usize = 0;
 
-                inline for (T) |Comp| {
+                inline for (search) |Comp| {
                     if (((self.signatures.items[i] >> @intCast(getCompIndex(Comp))) & 1) == 1) found += 1;
                 }
 
-                if (found == T.len) try out.append(allocator, @enumFromInt(i));
+                if (found == search.len) try out.append(allocator, @enumFromInt(i));
             }
 
             return out;
         }
 
-        pub fn bufQuery(self: @This(), comptime T: []const type, buffer: []Entity) !usize {
+        pub fn bufQuery(self: @This(), comptime search: []const type, buffer: []Entity) !usize {
             @memset(buffer, @enumFromInt(0));
 
             var len: usize = std.math.maxInt(usize);
@@ -131,17 +131,59 @@ pub fn World(comps: []const type) type {
 
             for (0..len) |i| {
                 var found: usize = 0;
-                inline for (T) |Comp| {
-                    if (self.signatures.items[i].mask >> @intCast(getCompIndex(Comp)) == 1) found += 1;
+                inline for (search) |Comp| {
+                    if (((self.signatures.items[i] >> @intCast(getCompIndex(Comp))) & 1) == 1) found += 1;
                 }
 
-                if (found == T.len) {
+                if (found == search.len) {
                     out += 1;
                     buffer[i] = @enumFromInt(i);
                 }
             }
 
             return out;
+        }
+
+        pub fn iterator(self: *@This(), comptime search: []const type) Query(search) {
+            var len: usize = std.math.maxInt(usize);
+            inline for (comps) |Comp| len = @min(len, self.getLayoutComp(Comp).items.len);
+
+            return Query(search){
+                .world = self,
+                .index = 0,
+                .end = len,
+            };
+        }
+
+        pub fn Query(search: []const type) type {
+            return struct {
+                world: *World(comps),
+                index: usize,
+                end: usize,
+
+                pub fn next(self: *@This()) ?Entity {
+                    return while (true) {
+                        if (self.index >= self.end) return null;
+
+                        self.index += 1;
+                        if (self.peek()) |entity| return entity;
+                    };
+                }
+
+                pub fn peek(self: @This()) ?Entity {
+                    if (self.index >= self.end) return null;
+                    var found: usize = 0;
+                    inline for (search) |Comp| {
+                        if (((self.world.signatures.items[self.index] >> @intCast(getCompIndex(Comp))) & 1) == 1) found += 1;
+                    }
+
+                    return if (found == search.len) @enumFromInt(self.index) else null;
+                }
+
+                pub fn reset(self: *@This()) void {
+                    self.index = 0;
+                }
+            };
         }
     };
 }

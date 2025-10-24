@@ -22,6 +22,7 @@ pub fn main() !void {
 
     const billy: ecs.Entity = try world.add();
     billy.set(f32, 33.33, world);
+    billy.set(u32, 67, world);
 
     const harald: ecs.Entity = try world.add();
     harald.set(f32, 67.69, world);
