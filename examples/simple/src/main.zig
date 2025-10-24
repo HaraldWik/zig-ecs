@@ -32,6 +32,12 @@ pub fn main() !void {
     thing.set(f32, 69.123, world);
     thing.set(u32, 420, world);
 
+    try queryEntities(allocator, &world);
+
+    std.debug.print("Total entity count {d}\n", .{world.entity_count});
+}
+
+pub fn queryEntities(allocator: std.mem.Allocator, world: *World) !void {
     var query = try world.allocQuery(&.{ u32, f32 }, allocator);
     defer query.deinit(allocator);
     std.debug.print("Entities: ", .{});
@@ -39,6 +45,4 @@ pub fn main() !void {
         std.debug.print("(i: {d}, u: {?}, f: {?}, g: {x}), ", .{ @intFromEnum(entity), entity.get(u32, world), entity.get(f32, world), entity.getGeneration(world) });
     }
     std.debug.print("\n", .{});
-
-    std.debug.print("Total entity count {d}\n", .{world.entity_count});
 }

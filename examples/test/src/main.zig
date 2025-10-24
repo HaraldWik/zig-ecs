@@ -30,15 +30,19 @@ pub fn main() !void {
         thing.set(u32, @intCast(i), world);
     }
 
-    var it = world.iterator(&.{ u32, f32 });
+    try query(&world);
+
+    std.debug.print("Total entity count {d}\n", .{world.entity_count});
+}
+
+pub fn query(world: *World) !void {
+    var it = world.queryIterator(&.{ u32, f32 });
     std.debug.print("Entities: \n", .{});
     while (it.next()) |entity| {
         if (entity.getPtr(u32, world)) |num| num.* += 1;
         if (entity.getPtr(f32, world)) |num| num.* += 3;
 
-        std.debug.print("{d}: u32: {?}, f32: {?}, s: {b}\n", .{ @intFromEnum(entity) + 1, entity.get(u32, world), entity.get(f32, world), entity.getSignature(world) });
+        std.debug.print("{d}: u32: {?}, f32: {?}\n", .{ @intFromEnum(entity) + 1, entity.get(u32, world), entity.get(f32, world) });
     }
     std.debug.print("\n", .{});
-
-    std.debug.print("Total entity count {d}\n", .{world.entity_count});
 }

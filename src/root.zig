@@ -4,26 +4,15 @@ pub const Entity = enum(usize) {
     _,
 
     pub fn get(self: @This(), comptime T: type, world: anytype) ?T {
-        return if (((world.signatures.items[@intFromEnum(self)] >> @intCast(@TypeOf(world).getCompIndex(T))) & 1) == 1)
-            world.getLayoutComp(T).items[@intFromEnum(self)]
-        else
-            null;
+        return world.entityGet(T, self);
     }
 
     pub fn getPtr(self: @This(), comptime T: type, world: anytype) ?*T {
-        return if (((world.signatures.items[@intFromEnum(self)] >> @intCast(@TypeOf(world).getCompIndex(T))) & 1) == 1)
-            &world.getLayoutComp(T).items[@intFromEnum(self)]
-        else
-            null;
+        return world.entityGetPtr(T, self);
     }
 
     pub fn set(self: @This(), comptime T: type, val: T, world: anytype) void {
-        world.signatures.items[@intFromEnum(self)] |= (@as(@TypeOf(world).Signature, 1) << @intCast(@TypeOf(world).getCompIndex(T)));
-        world.getLayoutComp(T).items[@intFromEnum(self)] = val;
-    }
-
-    pub fn getSignature(self: @This(), world: anytype) @TypeOf(world).Signature {
-        return world.signatures.items[@intFromEnum(self)];
+        world.entitySet(T, val, self);
     }
 
     pub fn getGeneration(self: @This(), world: anytype) usize {
@@ -57,6 +46,37 @@ pub fn World(comps: []const type) type {
         pub const components: []const type = comps;
         pub const Layout: type = std.meta.Tuple(&types);
         pub const Signature: type = std.meta.Int(.unsigned, comps.len);
+
+        pub fn QueryIterator(search: []const type) type {
+            return struct {
+                world: *World(comps),
+                index: usize,
+                end: usize,
+
+                pub fn next(self: *@This()) ?Entity {
+                    return while (true) {
+                        if (self.index >= self.end) return null;
+
+                        self.index += 1;
+                        if (self.peek()) |entity| return entity;
+                    };
+                }
+
+                pub fn peek(self: @This()) ?Entity {
+                    if (self.index >= self.end) return null;
+                    var found: usize = 0;
+                    inline for (search) |Comp| {
+                        if (((self.world.signatures.items[self.index] >> @intCast(getCompIndex(Comp))) & 1) == 1) found += 1;
+                    }
+
+                    return if (found == search.len) @enumFromInt(self.index) else null;
+                }
+
+                pub fn reset(self: *@This()) void {
+                    self.index = 0;
+                }
+            };
+        }
 
         pub fn getCompIndex(comptime T: type) usize {
             inline for (kvs) |kv| if (kv.key == T) return kv.value;
@@ -143,46 +163,34 @@ pub fn World(comps: []const type) type {
             return out;
         }
 
-        pub fn iterator(self: *@This(), comptime search: []const type) Query(search) {
+        pub fn queryIterator(self: *@This(), comptime search: []const type) QueryIterator(search) {
             var len: usize = std.math.maxInt(usize);
             inline for (comps) |Comp| len = @min(len, self.getLayoutComp(Comp).items.len);
 
-            return Query(search){
+            return QueryIterator(search){
                 .world = self,
                 .index = 0,
                 .end = len,
             };
         }
 
-        pub fn Query(search: []const type) type {
-            return struct {
-                world: *World(comps),
-                index: usize,
-                end: usize,
+        pub fn entityGet(self: @This(), comptime T: type, entity: Entity) ?T {
+            return if (((self.signatures.items[@intFromEnum(entity)] >> @intCast(getCompIndex(T))) & 1) == 1)
+                self.getLayoutComp(T).items[@intFromEnum(entity)]
+            else
+                null;
+        }
 
-                pub fn next(self: *@This()) ?Entity {
-                    return while (true) {
-                        if (self.index >= self.end) return null;
+        pub fn entityGetPtr(self: @This(), comptime T: type, entity: Entity) ?*T {
+            return if (((self.signatures.items[@intFromEnum(entity)] >> @intCast(getCompIndex(T))) & 1) == 1)
+                &self.getLayoutComp(T).items[@intFromEnum(entity)]
+            else
+                null;
+        }
 
-                        self.index += 1;
-                        if (self.peek()) |entity| return entity;
-                    };
-                }
-
-                pub fn peek(self: @This()) ?Entity {
-                    if (self.index >= self.end) return null;
-                    var found: usize = 0;
-                    inline for (search) |Comp| {
-                        if (((self.world.signatures.items[self.index] >> @intCast(getCompIndex(Comp))) & 1) == 1) found += 1;
-                    }
-
-                    return if (found == search.len) @enumFromInt(self.index) else null;
-                }
-
-                pub fn reset(self: *@This()) void {
-                    self.index = 0;
-                }
-            };
+        pub fn entitySet(self: @This(), comptime T: type, val: T, entity: Entity) void {
+            self.signatures.items[@intFromEnum(entity)] |= (@as(Signature, 1) << @intCast(getCompIndex(T)));
+            self.getLayoutComp(T).items[@intFromEnum(entity)] = val;
         }
     };
 }
