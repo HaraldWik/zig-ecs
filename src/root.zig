@@ -4,18 +4,17 @@ pub const Entity = enum(usize) {
     _,
 
     pub fn get(self: @This(), comptime T: type, world: anytype) ?T {
-        return if (world.signatures.items[@intFromEnum(self)] >> @intCast(@TypeOf(world).getCompIndex(T)) == 1)
+        return if (((world.signatures.items[@intFromEnum(self)] >> @intCast(@TypeOf(world).getCompIndex(T))) & 1) == 1)
             world.getLayoutComp(T).items[@intFromEnum(self)]
         else
             null;
     }
 
     pub fn getPtr(self: @This(), comptime T: type, world: anytype) ?*T {
-        var val: ?T = if (world.signatures.items[@intFromEnum(self)] >> @intCast(@TypeOf(world).getCompIndex(T)) == 1)
-            world.getLayoutComp(T).items[@intFromEnum(self)]
+        return if (((world.signatures.items[@intFromEnum(self)] >> @intCast(@TypeOf(world).getCompIndex(T))) & 1) == 1)
+            &world.getLayoutComp(T).items[@intFromEnum(self)]
         else
             null;
-        return if (val != null) &val.? else null;
     }
 
     pub fn set(self: @This(), comptime T: type, val: T, world: anytype) void {

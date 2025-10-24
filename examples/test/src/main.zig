@@ -1,10 +1,10 @@
 const std = @import("std");
 const ecs = @import("ecs");
 
-pub const Components: []const type = &.{ u32, u64 };
+pub const Components1: []const type = &.{ u32, u64 };
 pub const Components2: []const type = &.{ f32, f64 };
 
-pub const World = ecs.World(ecs.MergeComponentSlices(&.{ Components, Components2 }));
+pub const World = ecs.World(ecs.MergeComponentSlices(&.{ Components1, Components2 }));
 
 pub fn main() !void {
     var gpa: std.heap.GeneralPurposeAllocator(.{ .safety = true }) = .{};
@@ -21,8 +21,8 @@ pub fn main() !void {
 
     for (0..10) |i| {
         const player: ecs.Entity = try world.add();
-        player.set(u32, @intCast(i + 28), world);
         player.set(f32, @floatFromInt(i * 20), world);
+        player.set(u32, @intCast(1), world);
     }
 
     for (0..10) |i| {
@@ -30,10 +30,13 @@ pub fn main() !void {
         thing.set(u32, @intCast(i), world);
     }
 
-    var it = world.query(&.{ u32, f32 });
+    var it = world.iterator(&.{ u32, f32 });
     std.debug.print("Entities: \n", .{});
     while (it.next()) |entity| {
-        std.debug.print("{d}: u32: {?}, f32: {?}\n", .{ @intFromEnum(entity) + 1, entity.get(u32, world), entity.get(f32, world) });
+        if (entity.getPtr(u32, world)) |num| num.* += 1;
+        if (entity.getPtr(f32, world)) |num| num.* += 3;
+
+        std.debug.print("{d}: u32: {?}, f32: {?}, s: {b}\n", .{ @intFromEnum(entity) + 1, entity.get(u32, world), entity.get(f32, world), entity.getSignature(world) });
     }
     std.debug.print("\n", .{});
 
