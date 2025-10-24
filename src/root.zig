@@ -163,7 +163,7 @@ pub fn World(comps: []const type) type {
             return out;
         }
 
-        pub fn queryIterator(self: *@This(), comptime search: []const type) QueryIterator(search) {
+        pub fn query(self: *@This(), comptime search: []const type) QueryIterator(search) {
             var len: usize = std.math.maxInt(usize);
             inline for (comps) |Comp| len = @min(len, self.getLayoutComp(Comp).items.len);
 

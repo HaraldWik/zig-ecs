@@ -36,7 +36,7 @@ pub fn main() !void {
 }
 
 pub fn query(world: *World) !void {
-    var it = world.queryIterator(&.{ u32, f32 });
+    var it = world.query(&.{ u32, f32 });
     std.debug.print("Entities: \n", .{});
     while (it.next()) |entity| {
         if (entity.getPtr(u32, world)) |num| num.* += 1;
