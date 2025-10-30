@@ -16,33 +16,24 @@ pub fn main() !void {
 
     for (0..10) |i| {
         const thing: ecs.Entity = try world.add();
-        thing.set(f32, @floatFromInt(i), world);
-    }
-
-    for (0..10) |i| {
-        const player: ecs.Entity = try world.add();
-        player.set(f32, @floatFromInt(i * 20), world);
-        player.set(u32, @intCast(1), world);
+        thing.set(u32, @intCast(i * 2), world);
     }
 
     for (0..10) |i| {
         const thing: ecs.Entity = try world.add();
-        thing.set(u32, @intCast(i), world);
+        thing.set(f32, @floatFromInt(i), world);
     }
 
     try query(&world);
-
-    std.debug.print("Total entity count {d}\n", .{world.entity_count});
 }
 
 pub fn query(world: *World) !void {
-    var it = world.query(&.{ u32, f32 });
+    var it = world.query(&.{f32});
     std.debug.print("Entities: \n", .{});
     while (it.next()) |entity| {
-        if (entity.getPtr(u32, world)) |num| num.* += 1;
-        if (entity.getPtr(f32, world)) |num| num.* += 3;
+        if (entity.getPtr(f32, world)) |num| num.* += 1;
 
-        std.debug.print("{d}: u32: {?}, f32: {?}\n", .{ @intFromEnum(entity) + 1, entity.get(u32, world), entity.get(f32, world) });
+        std.debug.print("{d:2}, f32: {?:2}\n", .{ @intFromEnum(entity) + 1, entity.get(f32, world) });
     }
     std.debug.print("\n", .{});
 }

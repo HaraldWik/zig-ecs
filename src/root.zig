@@ -54,12 +54,14 @@ pub fn World(comps: []const type) type {
                 end: usize,
 
                 pub fn next(self: *@This()) ?Entity {
-                    return while (true) {
-                        if (self.index >= self.end) return null;
-
+                    while (self.index < self.end) {
+                        if (self.peek()) |entity| {
+                            self.index += 1;
+                            return entity;
+                        }
                         self.index += 1;
-                        if (self.peek()) |entity| return entity;
-                    };
+                    }
+                    return null;
                 }
 
                 pub fn peek(self: @This()) ?Entity {
@@ -167,7 +169,7 @@ pub fn World(comps: []const type) type {
             var len: usize = std.math.maxInt(usize);
             inline for (comps) |Comp| len = @min(len, self.getLayoutComp(Comp).items.len);
 
-            return QueryIterator(search){
+            return .{
                 .world = self,
                 .index = 0,
                 .end = len,
